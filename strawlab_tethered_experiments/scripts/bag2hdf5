@@ -53,6 +53,22 @@ def rostype2dtype(rostype,max_strlen=None):
         dtype = np.float32
     elif rostype=='float64':
         dtype = np.float64
+    elif rostype=='uint8':
+        dtype = np.uint8
+    elif rostype=='uint16':
+        dtype = np.uint16
+    elif rostype=='uint32':
+        dtype = np.uint32
+    elif rostype=='uint64':
+        dtype = np.uint64
+    elif rostype=='int8':
+        dtype = np.int8
+    elif rostype=='int16':
+        dtype = np.int16
+    elif rostype=='int32':
+        dtype = np.int32
+    elif rostype=='int64':
+        dtype = np.int64
     elif rostype=='bool':
         dtype = np.bool
     elif rostype=='string':
