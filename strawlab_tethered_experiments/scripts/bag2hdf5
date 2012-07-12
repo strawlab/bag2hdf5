@@ -138,8 +138,11 @@ def bag2hdf5(fname,out_fname,topics=None,max_strlen=None):
                     try:
                         dtype = make_dtype(msg,t,max_strlen=max_strlen)
                     except:
-                        print msg
-                        print 'ROW:',this_row
+                        print >> sys.stderr, "*********************************"
+                        print >> sys.stderr, 'topic:',topic
+                        print >> sys.stderr, "\nerror while processing message:\n\n%r"%msg
+                        print >> sys.stderr, '\nROW:',this_row
+                        print >> sys.stderr, "*********************************"
                         raise
                     results2[topic] = dict( dtype=dtype,
                                             object=[ this_row ])
