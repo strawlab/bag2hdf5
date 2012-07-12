@@ -192,6 +192,9 @@ if __name__ == '__main__':
                         help="maximum length of encoded strings")
     parser.add_argument('--out', type=str, default=None,
                         help="name of output file")
+    parser.add_argument('--topic', type=str, nargs='*',
+                        help="topic name to convert. defaults to all. "
+                        "multiple may be specified.")
     args = parser.parse_args()
 
     if not os.path.exists( args.filename ):
@@ -206,4 +209,7 @@ if __name__ == '__main__':
             print >> sys.stderr, 'will not overwrite %s'%output_fname
             sys.exit(1)
 
-    bag2hdf5(args.filename, output_fname, max_strlen=args.max_strlen)
+    bag2hdf5(args.filename,
+             output_fname,
+             max_strlen=args.max_strlen,
+             topics=args.topic)
