@@ -128,7 +128,7 @@ def bag2hdf5(fname,out_fname,topics=None,max_strlen=None):
     chunksize = 10000
     dsets = {}
     try:
-        with h5py.File( output_fname, mode='w' ) as out_f:
+        with h5py.File( out_fname, mode='w' ) as out_f:
 
             for topic, msg, t in bag.read_messages(topics=topics):
                 # get the data
