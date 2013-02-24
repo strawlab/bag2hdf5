@@ -25,6 +25,12 @@ def flatten_msg(msg,t, max_strlen=None):
                             ] )
             if FLOAT_TIME:
                 result.append( h.stamp.secs + h.stamp.nsecs*1e-9 )
+        
+        elif rostype=='time':
+            p = getattr(msg,attr)
+            result.extend( [p.secs, p.nsecs] )
+            if FLOAT_TIME:
+                result.append( p.secs + p.nsecs*1e-9 )
 
         elif rostype=='geometry_msgs/Point':
             p = getattr(msg,attr)
@@ -84,12 +90,22 @@ def make_dtype(msg,t,max_strlen=None):
     for i,attr in enumerate(msg.__slots__):
         rostype = msg._slot_types[i]
         if rostype=='Header':
+            # TODO: ?? replace int32 with int64 for secs
+            #       int32 fine for 0 <= nsecs <= 10**9-1 
             result.extend( [('header_seq',np.uint32),
                             ('header_stamp_secs',np.int32),
                             ('header_stamp_nsecs',np.int32),
                             ('header_frame_id','S'+str(max_strlen))])
             if FLOAT_TIME:
                 result.append( ('header_stamp',np.float64) )
+
+        elif rostype=='time':
+            # TODO: ?? replace int32 with int64 for secs
+            #       int32 fine for 0 <= nsecs <= 10**9-1 
+            result.extend( [('time_secs', np.int32),
+                            ('time_nsecs', np.int32)] )
+            if FLOAT_TIME:
+                result.append( ('time', np.float64) )
 
         elif rostype=='geometry_msgs/Point':
             result.extend( [(attr+'_x',np.float32),
