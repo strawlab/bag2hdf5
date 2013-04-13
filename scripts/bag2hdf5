@@ -8,6 +8,8 @@ import roslib; roslib.load_manifest('rosbag')
 import rospy
 import rosbag
 
+import warnings
+
 FLOAT_TIME = True # False to prevent saving of float redundant timestamps
 
 def flatten_msg(msg,t, max_strlen=None):
@@ -40,13 +42,11 @@ def flatten_msg(msg,t, max_strlen=None):
             result.extend( [p.x, p.y, p.z, p.w] )
         else:
             p = getattr(msg,attr)
-            # XXX: No one ever recorded /rosout ???
             if rostype=='string' or rostype=='string[]':   
                 if rostype=='string[]':
-                    #
-                    # XXX Workaround: only take the first string from array
-                    #
-                    p = p[0]
+                    # List of strings gets joined to one string
+                    warnings.warn('string array is joined to single string', RuntimeWarning, stacklevel=2)
+                    p = ','.join(p)
                 assert len(p)<=max_strlen
             result.append( p )
     if 1:
@@ -83,9 +83,8 @@ def rostype2dtype(rostype,max_strlen=None):
         dtype = np.int64
     elif rostype=='bool':
         dtype = np.bool
-    # XXX: No one ever recorded /rosout ???
     elif rostype=='string' or rostype=='string[]': 
-        dtype = 'S'+str(max_strlen)  ### XXX: string[] use 1. value
+        dtype = 'S'+str(max_strlen)
     else:
         raise ValueError('unknown ROS type: %s'%rostype)
     return dtype
