@@ -9,6 +9,7 @@ import rospy
 import rosbag
 
 import warnings
+import progressbar
 
 FLOAT_TIME = True # False to prevent saving of float redundant timestamps
 
@@ -145,10 +146,17 @@ def bag2hdf5(fname,out_fname,topics=None,max_strlen=None):
     results2 = {}
     chunksize = 10000
     dsets = {}
+    
+    # progressbar
+    _pbw = ['converting %s: ' % fname, progressbar.Percentage()]
+    pbar = progressbar.ProgressBar(widgets=_pbw, maxval=bag.size).start()
+
     try:
         with h5py.File( out_fname, mode='w' ) as out_f:
 
             for topic, msg, t in bag.read_messages(topics=topics):
+                # update progressbar
+                pbar.update(bag._file.tell())
                 # get the data
                 this_row = flatten_msg(msg,t,max_strlen=max_strlen)
                 # convert it to numpy element (and dtype)
@@ -202,6 +210,8 @@ def bag2hdf5(fname,out_fname,topics=None,max_strlen=None):
         if os.path.exists( output_fname ):
             os.unlink( output_fname )
         raise
+    finally:
+        pbar.finish()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
