@@ -207,8 +207,8 @@ def bag2hdf5(fname,out_fname,topics=None,max_strlen=None):
                                                  compression_opts=9)
 
     except:
-        if os.path.exists( output_fname ):
-            os.unlink( output_fname )
+        if os.path.exists( out_fname ):
+            os.unlink( out_fname )
         raise
     finally:
         pbar.finish()
