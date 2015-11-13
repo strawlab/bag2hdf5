@@ -14,6 +14,8 @@ import rosbag
 import warnings
 import progressbar
 
+import yaml
+
 FLOAT_TIME = True  # False to prevent saving of float redundant timestamps
 
 
@@ -144,6 +146,62 @@ def make_dtype(msg, max_strlen=None):
         result.append(('t', np.float64))
     return result
 
+def get_flymad_calibration_dtype():
+    result = [('pixels_x', np.int32),
+              ('pixels_y', np.int32),
+              ('dac_x', np.int32),
+              ('dac_y', np.int32)]
+    # also do timestamp
+    result.extend([('t_secs', np.int32), ('t_nsecs', np.int32)])
+    if FLOAT_TIME:
+        result.append(('t', np.float64))
+    return result
+
+def get_flymad_calibration_data(msg, t):
+    calib = yaml.load(msg.data)
+
+    fm_calib = []
+    for i in range(len(calib['pixels'][0])):
+        result = [calib['pixels'][0][i],
+                  calib['pixels'][1][i],
+                  calib['dac'][0][i],
+                  calib['dac'][1][i]]
+        # also do timestamp
+        result.extend([t.secs, t.nsecs])
+        if FLOAT_TIME:
+            result.append(t.secs + t.nsecs * 1e-9)
+
+        fm_calib.append(tuple(result))
+
+    return fm_calib
+
+def get_flymad_raw_2d_positions_dtype():
+    result = [('framenumber', np.uint64),
+              ('point_x', np.float64),
+              ('point_y', np.float64),
+              ('point_theta', np.float64)]
+    # also do timestamp
+    result.extend([('t_secs', np.int32), ('t_nsecs', np.int32)])
+    if FLOAT_TIME:
+        result.append(('t', np.float64))
+    return result
+
+def get_flymad_raw_2d_positions_data(msg, t):
+    points = msg.points
+
+    raw2dpoints = []
+    for p in points:
+        result = [msg.framenumber,
+                  p.x, p.y, p.theta]
+        # also do timestamp
+        result.extend([t.secs, t.nsecs])
+        if FLOAT_TIME:
+            result.append(t.secs + t.nsecs * 1e-9)
+
+        raw2dpoints.append(tuple(result))
+
+    return raw2dpoints
+
 
 def h5append(dset, arr):
     n_old_rows = dset.shape[0]
@@ -170,23 +228,43 @@ def bag2hdf5(fname, out_fname, topics=None, max_strlen=None):
             for topic, msg, t in bag.read_messages(topics=topics):
                 # update progressbar
                 pbar.update(bag._file.tell())
-                # get the data
-                this_row = flatten_msg(msg, t, max_strlen=max_strlen)
-                # convert it to numpy element (and dtype)
-                if topic not in results2:
-                    try:
-                        dtype = make_dtype(msg, max_strlen=max_strlen)
-                    except:
-                        print >> sys.stderr, "*********************************"
-                        print >> sys.stderr, 'topic:', topic
-                        print >> sys.stderr, "\nerror while processing message:\n\n%r" % msg
-                        print >> sys.stderr, '\nROW:', this_row
-                        print >> sys.stderr, "*********************************"
-                        raise
-                    results2[topic] = dict(dtype=dtype,
-                                           object=[this_row])
-                else:
-                    results2[topic]['object'].append(this_row)
+                # GET THE RESULTS DATA
+                if topic == "/targeter/calibration":
+                    # XXX WORKAROUND FOR FLYMAD CALIBRATION
+                    several_rows = get_flymad_calibration_data(msg, t)
+                    if topic not in results2:
+                        dtype = get_flymad_calibration_dtype()
+                        results2[topic] = dict(dtype=dtype,
+                                               object=several_rows)
+                    else:
+                        results2[topic]['object'].extend(several_rows)
+                elif topic == "/flymad/raw_2d_positions":
+                    # XXX WORKAROUND FOR FLYMAD RAW 2D POSITIONS
+                    several_rows = get_flymad_raw_2d_positions_data(msg, t)
+                    if topic not in results2:
+                        dtype = get_flymad_raw_2d_positions_dtype()
+                        results2[topic] = dict(dtype=dtype,
+                                               object=several_rows)
+                    else:
+                        results2[topic]['object'].extend(several_rows)
+                else:  # UNIVERSAL TOPICS
+                    # get the data
+                    this_row = flatten_msg(msg, t, max_strlen=max_strlen)
+                    # convert it to numpy element (and dtype)
+                    if topic not in results2:
+                        try:
+                            dtype = make_dtype(msg, max_strlen=max_strlen)
+                        except:
+                            print >> sys.stderr, "*********************************"
+                            print >> sys.stderr, 'topic:', topic
+                            print >> sys.stderr, "\nerror while processing message:\n\n%r" % msg
+                            print >> sys.stderr, '\nROW:', this_row
+                            print >> sys.stderr, "*********************************"
+                            raise
+                        results2[topic] = dict(dtype=dtype,
+                                               object=[this_row])
+                    else:
+                        results2[topic]['object'].append(this_row)
 
                 # now flush our caches periodically
                 if len(results2[topic]['object']) >= chunksize:
