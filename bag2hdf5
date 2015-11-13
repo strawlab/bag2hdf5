@@ -47,6 +47,10 @@ def flatten_msg(msg, t, max_strlen=None):
             p = getattr(msg, attr)
             result.extend([p.x, p.y, p.z, p.w])
 
+        elif rostype == 'float32[4]':  # flymad/TrackedObj.msg
+            p = getattr(msg, attr)
+            result.extend([p[0], p[1], p[2], p[3]])
+
         else:
             p = getattr(msg, attr)
             if rostype == 'string' or rostype == 'string[]':
@@ -124,6 +128,12 @@ def make_dtype(msg, max_strlen=None):
                            (attr+'_y', np.float32),
                            (attr+'_z', np.float32),
                            (attr+'_w', np.float32),
+                           ])
+        elif rostype == 'float32[4]':  # flymad/TrackedObj.msg
+            result.extend([(attr+'_0', np.float32),
+                           (attr+'_1', np.float32),
+                           (attr+'_2', np.float32),
+                           (attr+'_3', np.float32),
                            ])
         else:
             nptype = rostype2dtype(rostype, max_strlen=max_strlen)
