@@ -60,7 +60,8 @@ def flatten_msg(msg, t, max_strlen=None):
                     # List of strings gets joined to one string
                     warnings.warn('string array is joined to single string', RuntimeWarning, stacklevel=2)
                     p = ','.join(p)
-                assert len(p) <= max_strlen
+                if len(p) > max_strlen:
+                    raise Exception("String longer than max_strlen '%d' > '%d'" % (len(p), max_strlen))
             result.append(p)
     # also do timestamp
     result.extend([t.secs, t.nsecs])
