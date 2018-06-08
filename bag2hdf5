@@ -22,9 +22,9 @@ def flatten_msg(msg, t, max_strlen=None):
     result = []
     for i, attr in enumerate(msg.__slots__):
         rostype = msg._slot_types[i]
-
-        if attr == 'header':
-            h = msg.header
+        
+        if rostype == 'std_msgs/Header':
+            h = getattr(msg, attr)
             result.extend([h.seq,
                            h.stamp.secs,
                            h.stamp.nsecs,
@@ -38,6 +38,28 @@ def flatten_msg(msg, t, max_strlen=None):
             result.extend([p.secs, p.nsecs])
             if FLOAT_TIME:
                 result.append(p.secs + p.nsecs*1e-9)
+                
+        elif rostype == 'geometry_msgs/PoseWithCovariance':
+            p = getattr(msg, attr)
+            pose = p.pose
+            covariance = p.covariance
+            position = pose.position
+            quaternion = pose.orientation
+            result.extend([position.x, position.y, position.z])
+            result.extend([quaternion.x, quaternion.y, quaternion.z, quaternion.w])
+            for i in range(len(covariance)):
+                result.extend([covariance[i]])
+            
+        elif rostype == 'geometry_msgs/TwistWithCovariance':
+            p = getattr(msg, attr)
+            twist = p.twist
+            covariance = p.covariance
+            linear = twist.linear
+            angular = twist.angular
+            result.extend([linear.x, linear.y, linear.z])
+            result.extend([angular.x, angular.y, angular.z])
+            for i in range(len(covariance)):
+                result.extend([covariance[i]])
 
         elif rostype == 'geometry_msgs/Point':
             p = getattr(msg, attr)
@@ -46,7 +68,20 @@ def flatten_msg(msg, t, max_strlen=None):
         elif rostype == 'geometry_msgs/Quaternion':
             p = getattr(msg, attr)
             result.extend([p.x, p.y, p.z, p.w])
-
+            
+        elif rostype == 'geometry_msgs/Vector3':
+            p = getattr(msg, attr)
+            result.extend([p.x, p.y, p.z])
+            
+        elif rostype == 'geometry_msgs/Point32[]':
+		    p = getattr(msg, attr)
+		    for i in range(len(p)):
+		        result.extend([ p[i].x, p[i].y, p[i].z ])
+        
+        elif rostype == 'sensor_msgs/ChannelFloat32[]':
+            p = getattr(msg, attr)
+            #This is naturally empty
+        
         else:
             p = getattr(msg, attr)
             if rostype == 'string' or rostype == 'string[]':
@@ -56,13 +91,14 @@ def flatten_msg(msg, t, max_strlen=None):
                     p = ','.join(p)
                 assert len(p) <= max_strlen
             result.append(p)
+            
     # also do timestamp
     result.extend([t.secs, t.nsecs])
     if FLOAT_TIME:
         result.append(t.secs + t.nsecs * 1e-9)
 
     return tuple(result)
-
+        
 
 def rostype2dtype(rostype, max_strlen=None):
     assert max_strlen is not None  # don't accept default
@@ -102,29 +138,81 @@ def make_dtype(msg, max_strlen=None):
     result = []
     for i, attr in enumerate(msg.__slots__):
         rostype = msg._slot_types[i]
-        if rostype == 'Header':
+        
+        if rostype == 'std_msgs/Header':
             result.extend([('header_seq', np.uint32),
                            ('header_stamp_secs', np.int32),
                            ('header_stamp_nsecs', np.int32),
                            ('header_frame_id', 'S'+str(max_strlen))])
             if FLOAT_TIME:
                 result.append(('header_stamp', np.float64))
+                
         elif rostype == 'time':
             result.extend([('time_secs', np.int32),
                            ('time_nsecs', np.int32)])
             if FLOAT_TIME:
                 result.append(('time', np.float64))
+                
+                
+        elif rostype == 'geometry_msgs/PoseWithCovariance':
+            p = getattr(msg, attr)
+            pose = p.pose
+            covariance = p.covariance
+            position = pose.position
+            quaternion = pose.orientation
+            result.extend([(attr+'_position'+'_x', np.float32),
+                           (attr+'_position'+'_y', np.float32),
+                           (attr+'_position'+'_z', np.float32)])
+            result.extend([(attr+'_orientation'+'_x', np.float32),
+                           (attr+'_orientation'+'_y', np.float32),
+                           (attr+'_orientation'+'_z', np.float32),
+                           (attr+'_orientation'+'_w', np.float32)])
+            for i in range(len(covariance)):
+                result.extend([(attr+'_covariance_' + str(i), np.float64)])
+                           
+        elif rostype == 'geometry_msgs/TwistWithCovariance':
+            p = getattr(msg, attr)
+            twist = p.twist
+            covariance = p.covariance
+            linear = twist.linear
+            angular = twist.angular
+            result.extend([(attr+'_linear'+'_x', np.float32),
+                           (attr+'_linear'+'_y', np.float32),
+                           (attr+'_linear'+'_z', np.float32)])
+            result.extend([(attr+'_angular'+'_x', np.float32),
+                           (attr+'_angular'+'_y', np.float32),
+                           (attr+'_angular'+'_z', np.float32)])
+            for i in range(len(covariance)):
+                result.extend([(attr+'_covariance_'+ str(i), np.float64)])
+                
         elif rostype == 'geometry_msgs/Point':
             result.extend([(attr+'_x', np.float32),
                            (attr+'_y', np.float32),
-                           (attr+'_z', np.float32),
-                           ])
+                           (attr+'_z', np.float32)])
+                           
         elif rostype == 'geometry_msgs/Quaternion':
             result.extend([(attr+'_x', np.float32),
                            (attr+'_y', np.float32),
                            (attr+'_z', np.float32),
-                           (attr+'_w', np.float32),
-                           ])
+                           (attr+'_w', np.float32)])
+                           
+        elif rostype == 'geometry_msgs/Vector3':
+            result.extend([(attr+'_x', np.float32),
+                           (attr+'_y', np.float32),
+                           (attr+'_z', np.float32)])
+                           
+        elif rostype == 'geometry_msgs/Point32[]':
+            p = getattr(msg, attr)
+            for i in range(len(p)):
+                result.extend([(attr+'_x_' + str(i), np.float32),
+                               (attr+'_y_' + str(i), np.float32),
+                               (attr+'_z_' + str(i), np.float32)])
+        
+        elif rostype == 'sensor_msgs/ChannelFloat32[]':
+            p = getattr(msg, attr)
+            #This is naturally empty
+                           
+                      
         else:
             nptype = rostype2dtype(rostype, max_strlen=max_strlen)
             result.append((attr, nptype))
@@ -158,6 +246,7 @@ def bag2hdf5(fname, out_fname, topics=None, max_strlen=None):
         with h5py.File(out_fname, mode='w') as out_f:
 
             for topic, msg, t in bag.read_messages(topics=topics):
+            
                 # update progressbar
                 pbar.update(bag._file.tell())
                 # get the data
